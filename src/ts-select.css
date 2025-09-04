@@ -1,0 +1,503 @@
+/* TS Select (Bootstrap 5-friendly) */
+.ts-select.dropdown {
+	position: relative;
+	width: 100%;
+}
+.ts-select {
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+	-webkit-touch-callout: none !important;
+	-webkit-tap-highlight-color: transparent !important;
+}
+
+.ts-select,
+.ts-select *,
+.ts-select .ts-select-toggle,
+.ts-select .ts-select-toggle * {
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+	-webkit-touch-callout: none !important;
+	-webkit-tap-highlight-color: transparent !important;
+}
+.ts-select .ts-select-toggle.form-control {
+	cursor: pointer;
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	-moz-user-select: none !important;
+	-ms-user-select: none !important;
+	background-image: none;
+	/* Handle long text with ellipsis */
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+	/* Remove focus outline */
+	outline: none !important;
+	/* Prevent text selection completely */
+	-webkit-touch-callout: none !important;
+	-webkit-tap-highlight-color: transparent !important;
+}
+
+/* Caret indicator */
+.ts-select .ts-select-toggle.form-control::after {
+	content: "";
+	position: absolute;
+	right: 0.75rem;
+	top: 50%;
+	width: 0;
+	height: 0;
+	border-left: .3em solid transparent;
+	border-right: .3em solid transparent;
+	border-top: .35em solid currentColor;
+	transform: translateY(-40%);
+	opacity: .7;
+}
+
+.ts-select .ts-select-clear {
+	position: absolute;
+	right: 0.5rem;
+	top: 50%;
+	transform: translateY(-50%);
+	
+	display: none;
+	opacity: .7;
+	width: 1.2em;
+	height: 1.2em;
+	cursor: pointer;
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 50%;
+	text-align: center;
+	line-height: 1.2em;
+	font-size: 1.1em;
+	font-weight: bold;
+	z-index: 10;
+	transition: opacity 0.2s ease;
+	pointer-events: auto;
+}
+
+.ts-select .ts-select-clear:hover {
+	opacity: 1;
+	background: rgba(255, 255, 255, 1);
+}
+
+.ts-select .ts-select-clear.show { display: block; }
+
+/* Make dropdown menu span full width and look attached to control */
+.ts-select .dropdown-menu {
+	width: 100%;
+	min-width: 100%;
+	box-sizing: border-box;
+}
+
+.ts-select .ts-select-search {
+	margin-bottom: .25rem;
+}
+
+.ts-select .ts-select-actions {
+	display: flex;
+	gap: .25rem;
+	margin-bottom: .25rem;
+}
+
+.ts-select .ts-select-actions .btn {
+	font-size: .85rem;
+	padding: .25rem .5rem;
+}
+
+/* Flexible layout styles */
+.ts-select .ts-select-search.ts-flexible {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.25rem;
+}
+
+.ts-select .ts-select-search.ts-flexible .inputSelectSearch {
+	flex: 1;
+	margin-bottom: 0;
+}
+
+.ts-select .ts-select-actions.ts-flexible {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	margin-bottom: 0.25rem;
+}
+
+.ts-select .ts-select-actions.ts-flexible .btn {
+	flex: 1;
+	margin-bottom: 0;
+}
+
+/* Wide layout (≥300px) */
+.ts-select .ts-select-search.ts-flexible.ts-wide {
+	flex-direction: row;
+}
+
+.ts-select .ts-select-actions.ts-flexible.ts-wide {
+	flex-direction: row;
+}
+
+/* Narrow layout (<300px) */
+.ts-select .ts-select-search.ts-flexible.ts-narrow {
+	flex-direction: column;
+}
+
+.ts-select .ts-select-actions.ts-flexible.ts-narrow {
+	flex-direction: column;
+}
+
+.ts-select .ts-select-menu {
+	max-height: 240px;
+	overflow: auto;
+	
+	border: none;
+	background: var(--bs-body-bg);
+	/* Ensure proper overflow behavior during resize */
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.ts-select .dropdown-item {
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+    min-height: 32px;
+	xborder-bottom: 1px solid #dee2e6;
+	/* Ensure proper text containment */
+	box-sizing: border-box !important;
+}
+
+.ts-select .dropdown-item{
+	background-color: #ffffff !important;
+	color: #000000 !important;
+	border-color: #ffffff !important;
+}
+
+.ts-select .dropdown-item:hover {
+	background-color: #dee2e6 !important;
+	color: #000000 !important;
+	border-color: #dee2de !important;
+}
+
+.ts-select .dropdown-item:focus {
+	background-color: #dee2e6 !important;
+	color: #000000 !important;
+	border-color: #dee2de !important;
+}
+
+.ts-select-id-badge 
+{
+	min-width: 24px !important;
+	max-width: 36px !important;
+}
+.ts-select .ts-select-id-badge 
+{
+	
+	background-color: #2E5B8D !important;
+	color: #ffffff !important;
+}
+.ts-select .dropdown-item.active .ts-select-id-badge {
+	xbackground-color: rgba(255,255,255,.25) !important;
+	xcolor: #000000 !important;
+}
+
+.ts-select .dropdown-item:last-child { border-bottom: none; }
+
+
+
+.ts-select .dropdown-item .ts-select-id-badge 
+{
+    margin:0px !important;
+    padding:0px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    font-weight: normal;
+	font-size: .6rem !important;
+	min-width: 36px;
+}
+
+.ts-select .dropdown-item .ts-select-info {
+	opacity: .8;
+}
+
+.mb-1px
+{
+    
+}
+
+.ts-select .dropdown-item .form-check-input {
+	margin-top: 0;
+}
+
+.ts-select .ts-select-no-results {
+	display: none;
+}
+
+.ts-select .ts-select-no-results.show {
+	display: block;
+}
+
+/* Disabled state mirrors form-control disabled */
+.ts-select.disabled .ts-select-toggle {
+	user-select: none !important;
+	background-color: var(--bs-secondary-bg);
+	opacity: .65;
+    padding-right: 2.5rem;
+}
+
+.btnSelectAction {
+    margin: 0px;
+    padding: 0px !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.inputSelectSearch
+{
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.optionSelect
+{
+    padding-left: 4px;
+    outline: none !important;
+    box-shadow: none !important;
+    /* Ensure consistent dimensions during resize */
+    height: auto !important;
+    min-height: 40px !important;
+    max-height: none !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* Remove focus outline from option items */
+.optionSelect:focus {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
+/* Remove focus outline from option items - additional specificity */
+.optionSelect:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
+/* Disabled option styles - scope to item only */
+.optionSelect.disabled {
+  background-color: rgba(255,0,0,0.1) !important;
+}
+.optionSelect.disabled > * {
+  color: #adb5bd !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+/* Remove menu-level not-allowed to avoid breaking interactions */
+/* .ts-select-menu { cursor: not-allowed !important; } */
+
+/* Optgroup */
+.ts-select .ts-select-group-label {
+  font-weight: bold;
+  color: #adb5bd;
+  font-size: 1rem;
+  
+  
+  
+}
+.ts-select .ts-select-group-label.disabled {
+  color: #adb5bd;
+}
+
+/* Indentation for options inside an optgroup */
+.ts-select .ts-select-in-group {
+  padding-left: 1rem;
+}
+
+/* Group label styling */
+.ts-select .ts-select-group-label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-weight: 600;
+}
+
+/* Group label clickable styling */
+.ts-select .ts-select-group-label {
+	cursor: pointer;
+	transition: all 0.3s ease-in-out;
+	/* Ensure consistent dimensions during resize */
+	height: auto !important;
+	min-height: 32px !important;
+	max-height: none !important;
+	padding-top: 8px !important;
+	padding-bottom: 8px !important;
+	margin: 0 !important;
+	box-sizing: border-box !important;
+}
+
+.ts-select .ts-select-group-label:hover {
+	background-color: #f8f9fa;
+}
+
+/* Remove focus outline from group labels */
+.ts-select .ts-select-group-label:focus {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
+/* Remove focus outline from group labels - additional specificity */
+.ts-select .ts-select-group-label:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
+.ts-select .ts-select-group-label.collapsed {
+	background-color: rgba(255,0,0,0.1) !important;
+	color: #888888 !important;
+}
+
+/* Ensure hidden items are actually hidden */
+.ts-select-menu [style*="display: none"] {
+	display: none !important;
+}
+
+/* Ensure option text stays within bounds */
+.ts-select .optionSelect .dropdown-item-text,
+.ts-select .optionSelect span:not(.form-check-input) {
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+	white-space: nowrap !important;
+	flex: 1;
+}
+
+/* Direct toggle - no animations */
+.ts-select .optionSelect {
+	/* No transitions needed for instant toggle */
+}
+
+/* Group text styling */
+.ts-select-group-text {
+	user-select: none !important;
+	flex: 1;
+	/* Ensure text stays within bounds */
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+	white-space: nowrap !important;
+}
+
+/* Hierarchical indentation by level - with higher specificity */
+.ts-select .ts-select-group-label.level-0 { padding-left: 8px !important; }
+.ts-select .ts-select-group-label.level-1 { padding-left: 28px !important; }
+.ts-select .ts-select-group-label.level-2 { padding-left: 48px !important; }
+.ts-select .ts-select-group-label.level-3 { padding-left: 68px !important; }
+.ts-select .ts-select-group-label.level-4 { padding-left: 88px !important; }
+.ts-select .ts-select-group-label.level-5 { padding-left: 108px !important; }
+.ts-select .ts-select-group-label.level-6 { padding-left: 128px !important; }
+
+.ts-select .optionSelect.level-0 { padding-left: 8px !important; }
+.ts-select .optionSelect.level-1 { padding-left: 28px !important; }
+.ts-select .optionSelect.level-2 { padding-left: 48px !important; }
+.ts-select .optionSelect.level-3 { padding-left: 68px !important; }
+.ts-select .optionSelect.level-4 { padding-left: 88px !important; }
+.ts-select .optionSelect.level-5 { padding-left: 108px !important; }
+.ts-select .optionSelect.level-6 { padding-left: 128px !important; }
+
+/* Ensure proper indentation for nested groups and options */
+.ts-select .ts-select-group-label,
+.ts-select .optionSelect {
+	box-sizing: border-box;
+	/* Prevent height changes during resize */
+	height: auto !important;
+	min-height: 32px !important;
+	max-height: none !important;
+}
+
+/* Force consistent dimensions for all items - highest priority */
+.ts-select .ts-select-menu .ts-select-group-label,
+.ts-select .ts-select-menu .optionSelect {
+	height: auto !important;
+	min-height: 32px !important;
+	max-height: 32px !important;
+	padding-top: 8px !important;
+	padding-bottom: 8px !important;
+	margin: 0 !important;
+	/* Ensure text is fully visible and contained */
+	display: flex !important;
+	align-items: center !important;
+	overflow: hidden !important;
+	box-sizing: border-box !important;
+}
+
+/* Override Bootstrap dropdown-item focus styles */
+.ts-select .dropdown-item:focus {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
+.ts-select .dropdown-item:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
+/* Resize handle for dropdown height */
+.ts-select-resize-handle {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	width: 100%;
+	height: 2px;
+	background: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-radius: 0 0 4px 0;
+	cursor: ns-resize;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 10px;
+	color: #6c757d;
+	user-select: none;
+	z-index: 1000;
+}
+
+.ts-select-resize-handle:hover {
+	background: #e9ecef;
+	border-color: #adb5bd;
+}
+
+.ts-select-resize-handle:active {
+	background: #dee2e6;
+	border-color: #6c757d;
+}
+
+/* Ensure dropdown menu can be resized */
+.ts-select .dropdown-menu {
+	resize: none;
+	overflow: hidden;
+}
+
+.ts-select .ts-select-menu {
+	resize: none;
+	overflow: auto;
+}
+.ts-select-group-check
+{
+	margin-top: 0px !important;
+	xmargin-left: 6px;
+}
+.optionCheck
+{
+	margin-top: 0px !important;
+	xmargin-left: var(--ts-checkbox-margin-left, 6px);
+}
+
