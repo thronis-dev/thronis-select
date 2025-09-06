@@ -55,7 +55,10 @@
     multipleSeparator: ', ',
     moreItemsText: function (remainingCount) {
       return `... +${remainingCount} tane daha`;
-    }
+    },
+    
+    // Info tooltip
+    additionalInfoTitle: 'Ek Bilgi'
   };
   
   // Also expose as global for non-jQuery usage

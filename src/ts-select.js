@@ -45,42 +45,46 @@
 				return this;
 			}
 			
-			const first = this[0];
+			const selectEl = this[0];
 			
-			if (!first) {
+			if (!selectEl || selectEl.tagName !== 'SELECT') {
 				return this;
 			}
 			
-			let wrapper = null;
-			if (first.tagName === 'SELECT') {
-				if (first.id) {
-					wrapper = document.getElementById(`ts-select-${first.id}`);
-					if (!wrapper) {
-						wrapper = document.querySelector(`[data-ts-select-for="${first.id}"]`);
-					}
-				}
-			} else if (first.classList && first.classList.contains('ts-select') && first.classList.contains('dropdown')) {
-				wrapper = first;
-			}
-			
-			if (wrapper && typeof wrapper.getVal === 'function' && typeof wrapper.setVal === 'function') {
-				if (arguments.length === 0) {
-					return wrapper.getVal();
-				} else {
-					wrapper.setVal(value);
-					return this;
-				}
-			}
-			
+			// Get values
 			if (arguments.length === 0) {
-				return undefined;
+				if (selectEl.multiple) {
+					return Array.from(getSelectedOptions(selectEl)).map(o => o.value);
+				} else {
+					const selected = getSelectedOptions(selectEl);
+					return selected.length > 0 ? selected[0].value : '';
+				}
 			}
+			
+			// Set values
+			const ph = Array.from(selectEl.options).find(o => o.dataset && o.dataset.placeholder === 'true');
+			if (value === null || value === undefined || value === '') {
+				Array.from(selectEl.options).forEach(opt => opt.selected = false);
+				if (!selectEl.multiple && ph) ph.selected = true;
+			} else if (Array.isArray(value)) {
+				const stringValues = value.map(v => String(v));
+				Array.from(selectEl.options).forEach(opt => {
+					opt.selected = stringValues.includes(String(opt.value));
+				});
+				if (!selectEl.multiple && ph) ph.selected = false;
+			} else {
+				const stringValue = String(value);
+				selectEl.value = stringValue;
+				if (ph) ph.selected = false;
+			}
+			selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+			syncFromOptions(selectEl);
 			
 			return this;
 		};
 		
-		// Add selectAll method
-		jQuery.fn.selectAll = function() {
+		// Add tsAll method
+		jQuery.fn.tsAll = function() {
 			if (this.length === 0) return this;
 			
 			const selectEl = this[0];
@@ -120,8 +124,8 @@
 			return this;
 		};
 		
-		// Add selectNone method
-		jQuery.fn.selectNone = function() {
+		// Add tsNone method
+		jQuery.fn.tsNone = function() {
 			if (this.length === 0) return this;
 			
 			const selectEl = this[0];
@@ -165,8 +169,8 @@
 			return this;
 		};
 		
-		// Add selectInverse method
-		jQuery.fn.selectInverse = function() {
+		// Add tsInverse method
+		jQuery.fn.tsInverse = function() {
 			if (this.length === 0) return this;
 			
 			const selectEl = this[0];
@@ -201,6 +205,59 @@
 				
 				// Update group checkbox states
 				updateAllGroupCheckboxStates(wrapper, selectEl);
+			}
+			
+			return this;
+		};
+		
+		// Add refresh method to refresh ts-select after adding/removing options
+		jQuery.fn.tsRefresh = function() {
+			if (this.length === 0) return this;
+			
+			const selectEl = this[0];
+			if (selectEl.tagName !== 'SELECT') return this;
+			
+			// Use the TsSelect.refresh method
+			if (window.TsSelect && window.TsSelect.refresh) {
+				window.TsSelect.refresh(selectEl.id);
+			}
+			
+			return this;
+		};
+		
+		// Add method to add options from JSON objects
+		jQuery.fn.tsAddOption = function(optionData) {
+			if (this.length === 0) return this;
+			
+			const selectEl = this[0];
+			if (selectEl.tagName !== 'SELECT') return this;
+			
+			// Handle single object or array of objects
+			const options = Array.isArray(optionData) ? optionData : [optionData];
+			
+			options.forEach(option => {
+				// Create option element
+				const optionEl = document.createElement('option');
+				
+				// Set basic properties
+				optionEl.value = option.value || option.id || '';
+				optionEl.textContent = option.text || option.label || option.value || option.id || '';
+				
+				// Set optional attributes
+				if (option.id) optionEl.setAttribute('data-id', option.id);
+				if (option.info) optionEl.setAttribute('data-info', option.info);
+				if (option.html) optionEl.setAttribute('data-html', option.html);
+				if (option.selected) optionEl.selected = true;
+				if (option.disabled) optionEl.disabled = true;
+				if (option.placeholder) optionEl.setAttribute('data-placeholder', 'true');
+				
+				// Add to select element
+				selectEl.appendChild(optionEl);
+			});
+			
+			// Refresh the ts-select component
+			if (window.TsSelect && window.TsSelect.refresh) {
+				window.TsSelect.refresh(selectEl.id);
 			}
 			
 			return this;
@@ -260,19 +317,47 @@
 		// Don't override height if container is being custom resized
 		if (container.dataset.customResize === 'true') return;
 		
-		const firstItem = container.querySelector('[data-index]:not([style*="display: none"])');
-		let itemHeight = 50; // Updated to match new minimum height
-		if (firstItem) {
-			const rect = firstItem.getBoundingClientRect();
-			if (rect && rect.height) itemHeight = rect.height;
+		// Get all visible items to calculate accurate height
+		const visibleItems = container.querySelectorAll('[data-index]:not([style*="display: none"])');
+		let itemHeight = 32; // Default fallback
+		
+		if (visibleItems.length > 0) {
+			// Calculate average height of all visible items
+			let totalHeight = 0;
+			let validItems = 0;
+			
+			visibleItems.forEach(item => {
+				const rect = item.getBoundingClientRect();
+				if (rect && rect.height && rect.height > 0) {
+					totalHeight += rect.height;
+					validItems++;
+				}
+			});
+			
+			if (validItems > 0) {
+				itemHeight = totalHeight / validItems;
+			}
 		}
-		container.style.maxHeight = `${Math.max(1, maxItems) * itemHeight}px`;
-		container.style.overflow = 'auto';
+		
+		const calculatedHeight = Math.max(1, maxItems) * itemHeight;
+		
+		// Use setProperty with !important to override any CSS rules
+		container.style.setProperty('max-height', `${calculatedHeight}px`, 'important');
+		container.style.setProperty('overflow', 'auto', 'important');
 	}
 
 	function updateToggleLabel(toggleInput, selectEl, clearBtn) {
 		const placeholderOpt = !selectEl.multiple ? Array.from(selectEl.options).find(o => o.dataset && o.dataset.placeholder === 'true') : null;
 		const selected = getSelectedOptions(selectEl).filter(o => !placeholderOpt || o !== placeholderOpt);
+
+		/*
+		console.log('updateToggleLabel called:', {
+			isMultiple: selectEl.multiple,
+			selectedCount: selected.length,
+			selectedItems: selected.map(o => o.textContent),
+			toggleInput: toggleInput
+		});*/
+
 		
 		// Update clear button visibility
 		if (clearBtn) {
@@ -284,18 +369,27 @@
 		}
 		
 		if (selectEl.multiple) {
-			if (selected.length === 0) {
+			if (selected.length === 0)
+			{
+				//console.log('No items selected - showing placeholder');
 				toggleInput.value = '';
 				toggleInput.style.color = 'transparent';
 				toggleInput.title = '';
 			} else {
-			// Get display text for each selected option (HTML or text)
+			// Get display text for each selected option (always use plain text in input field)
 			const selectedTexts = selected.map((o) => {
-				const htmlContent = o.getAttribute('data-html');
-				return htmlContent || o.textContent;
+				// Always use plain text content for the input field
+				// (HTML content is only shown in the dropdown)
+				return o.textContent;
 			});
 			const formatAttribute = selectEl.getAttribute('ts-label-format');
 			const displayText = createSmartDisplayText(selectedTexts, formatAttribute);
+			/*
+			console.log('Items selected - updating display:', {
+				selectedTexts: selectedTexts,
+				formatAttribute: formatAttribute,
+				displayText: displayText
+			});*/
 				
 				toggleInput.value = displayText;
 				toggleInput.style.color = '#000000';
@@ -307,18 +401,169 @@
 		} else {
 			if (selected.length === 0) {
 				// For single select with no selection, show placeholder text
-				const singlePlaceholder = selectEl.getAttribute('placeholder') || (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.placeholderText) || 'Select Item';
+				// Use title attribute or default placeholder
+				const titleText = selectEl.getAttribute('title');
+				const defaultText = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.placeholderText) || 'Select Item';
+				const singlePlaceholder = titleText || defaultText;
 				toggleInput.value = singlePlaceholder;
 				toggleInput.style.color = '#6c757d'; // Gray color for placeholder
 				toggleInput.title = singlePlaceholder;
 			} else {
-				// Check if option has HTML content
-				const htmlContent = selected[0].getAttribute('data-html');
-				const displayText = htmlContent || selected[0].textContent;
+				// For single select, always use plain text content in the input field
+				// (HTML content is only shown in the dropdown)
+				const displayText = selected[0].textContent;
 				toggleInput.value = displayText;
 				toggleInput.style.color = '#000000';
 				toggleInput.title = displayText;
 			}
+		}
+	}
+
+	function syncFromOptions(selectEl) {
+		// Safety check for selectEl parameter
+		if (!selectEl) {
+			console.warn('syncFromOptions called with invalid selectEl parameter');
+			return;
+		}
+		
+		// Find the wrapper and items container
+		let wrapper;
+		if (selectEl.id) {
+			// If select has an ID, find wrapper by data-ts-select-for attribute
+			wrapper = document.querySelector(`[data-ts-select-for="${selectEl.id}"]`);
+		} else if (selectEl.dataset.tsSelectWrapperId) {
+			// If select has no ID but has a wrapper ID stored, use that
+			wrapper = document.querySelector(`[data-ts-select-for="${selectEl.dataset.tsSelectWrapperId}"]`);
+		}
+		
+		if (!wrapper) return;
+		
+		const itemsContainer = wrapper.querySelector('.ts-select-menu');
+		if (!itemsContainer) return;
+		
+		const toggleInput = wrapper.querySelector('.ts-select-toggle');
+		const clearBtn = wrapper.querySelector('.ts-select-clear');
+		
+		const buttons = itemsContainer.querySelectorAll('[data-index]');
+		buttons.forEach((btn) => {
+			const idx = parseInt(btn.getAttribute('data-index'), 10);
+			const opt = selectEl.options[idx];
+			if (!opt) return;
+			if (selectEl.multiple) {
+				const chk = btn.querySelector('input[type="checkbox"]');
+				if (chk) chk.checked = !!opt.selected;
+				btn.classList.toggle('active', !!opt.selected);
+			} else {
+				const radio = btn.querySelector('input[type="radio"]');
+				if (radio) {
+					// For single select, ensure only one radio button is checked
+					radio.checked = !!opt.selected;
+					// Ensure radio button name is correct for proper grouping
+					radio.name = `radio-${selectEl.id || 'select'}`;
+				}
+				btn.classList.toggle('active', !!opt.selected);
+			}
+		});
+		
+		// For single select, ensure only one radio button is checked at a time
+		if (!selectEl.multiple) {
+			const allRadios = itemsContainer.querySelectorAll('input[type="radio"]');
+			let hasSelected = false;
+			allRadios.forEach(radio => {
+				if (radio.checked) {
+					if (hasSelected) {
+						radio.checked = false; // Uncheck if another is already selected
+					} else {
+						hasSelected = true;
+					}
+				}
+			});
+		}
+		
+		// Update group controls if they exist
+		const groupLabels = wrapper.querySelectorAll('.ts-select-group-label');
+		if (selectEl.multiple && groupLabels.length > 0) {
+			groupLabels.forEach(groupLabel => {
+				const groupCheckbox = groupLabel.querySelector('input[type="checkbox"]');
+				if (groupCheckbox) {
+					const groupId = groupLabel.dataset.groupId;
+					const controlGroup = selectEl.querySelector(`optgroup[label="${groupId}"], group[label="${groupId}"]`);
+					if (controlGroup) {
+						updateGroupCheckboxState(groupCheckbox, controlGroup, itemsContainer);
+					}
+				}
+			});
+		}
+		
+		updateToggleLabel(toggleInput, selectEl, clearBtn);
+	}
+
+	function updateGroupCheckboxState(checkbox, group, itemsContainer) {
+		if (!itemsContainer) {
+			console.warn('updateGroupCheckboxState called with undefined itemsContainer');
+			return;
+		}
+		
+		const groupId = group.getAttribute('label');
+		
+		// Find ALL descendants at any depth using DOM traversal
+		function findAllDescendants(startElement) {
+			const descendants = [];
+			let currentElement = startElement.nextElementSibling;
+			
+			while (currentElement) {
+				// Stop if we hit another element at the same or higher level
+				if (currentElement.classList.contains('ts-select-group-label')) {
+					const currentLevel = parseInt(currentElement.dataset.level || '0', 10);
+					const startLevel = parseInt(startElement.dataset.level || '0', 10);
+					
+					if (currentLevel <= startLevel) {
+						break; // We've reached the end of this group's descendants
+					}
+				}
+				
+				// Add this element to descendants
+				descendants.push(currentElement);
+				currentElement = currentElement.nextElementSibling;
+			}
+			
+			return descendants;
+		}
+		
+		// Find the group label element
+		const groupLabel = itemsContainer.querySelector(`[data-group-id="${groupId}"]`);
+		if (!groupLabel) {
+			return;
+		}
+		
+		// Get all descendants using DOM traversal
+		const allDescendants = findAllDescendants(groupLabel);
+		
+		// Count total items (excluding group labels) and checked items
+		let totalItems = 0;
+		let checkedItems = 0;
+		
+		allDescendants.forEach(item => {
+			// Only count items that have checkboxes (not group labels)
+			if (!item.classList.contains('ts-select-group-label')) {
+				totalItems++;
+				const chk = item.querySelector('input[type="checkbox"]');
+				if (chk && chk.checked) {
+					checkedItems++;
+				}
+			}
+		});
+		
+		// Update checkbox state
+		if (checkedItems === 0) {
+			checkbox.checked = false;
+			checkbox.indeterminate = false;
+		} else if (checkedItems === totalItems) {
+			checkbox.checked = true;
+			checkbox.indeterminate = false;
+		} else {
+			checkbox.checked = false;
+			checkbox.indeterminate = true;
 		}
 	}
 	
@@ -412,7 +657,8 @@
 		const info = option.getAttribute('data-info');
 		if (info) {
 			const infoEl = createElement('small', 'text-muted ms-2 ts-select-info', { text: info });
-			infoEl.title = "Additional Info";
+			const additionalInfoTitle = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.additionalInfoTitle) || 'Additional Info';
+			infoEl.title = additionalInfoTitle;
             a.appendChild(infoEl);
 		}
 
@@ -439,7 +685,16 @@
 		if (searchWrap) {
 			const searchInput = searchWrap.querySelector('.inputSelectSearch');
 			if (searchInput) {
-				searchInput.placeholder = window.TsSelectLang.get('search');
+				// Find the select element to check for ts-search-placeholder attribute
+				const selectEl = document.querySelector(`[data-ts-select-for="${wrapper.getAttribute('data-ts-select-for')}"]`);
+				if (selectEl) {
+					// Use ts-search-placeholder attribute or language default
+					const customSearchPlaceholder = selectEl.getAttribute('ts-search-placeholder');
+					const langSearchPlaceholder = window.TsSelectLang.get('search');
+					searchInput.placeholder = customSearchPlaceholder || langSearchPlaceholder;
+				} else {
+					searchInput.placeholder = window.TsSelectLang.get('search');
+				}
 			}
 		}
 		
@@ -454,7 +709,16 @@
 		}
 		
 		if (toggleInput && !toggleInput.getAttribute('data-custom-placeholder')) {
-			toggleInput.placeholder = window.TsSelectLang.get('selectItem');
+			// Find the select element to check for title attribute
+			const selectEl = document.querySelector(`[data-ts-select-for="${wrapper.getAttribute('data-ts-select-for')}"]`);
+			if (selectEl) {
+				// Use title attribute or language default
+				const titleText = selectEl.getAttribute('title');
+				const langText = window.TsSelectLang.get('selectItem');
+				toggleInput.placeholder = titleText || langText;
+			} else {
+				toggleInput.placeholder = window.TsSelectLang.get('selectItem');
+			}
 		}
 	}
 
@@ -482,14 +746,40 @@
 			wrapper.setAttribute('data-ts-select-for', selectEl.id);
 			wrapper.setAttribute('aria-controls', selectEl.id);
 			wrapper.id = `ts-select-${selectEl.id}`;
+		} else {
+			// If no ID, create a unique identifier and store reference on select element
+			const uniqueId = 'ts-select-' + Math.random().toString(36).substr(2, 9);
+			wrapper.setAttribute('data-ts-select-for', uniqueId);
+			selectEl.dataset.tsSelectWrapperId = uniqueId;
 		}
 		if (selectEl.disabled) wrapper.classList.add('disabled');
+		
+		// Copy all CSS classes from select element to wrapper (except ts-select specific classes)
+		const selectClasses = Array.from(selectEl.classList);
+		const tsSelectClasses = ['ts-select', 'd-none']; // Classes to exclude
+		selectClasses.forEach(className => {
+			if (!tsSelectClasses.includes(className)) {
+				wrapper.classList.add(className);
+			}
+		});
 
 		const toggleInput = createElement('input', 'form-control ts-select-toggle pe-4', { type: 'text', readonly: 'true', 'data-bs-toggle': 'dropdown' });
+		
+		// Copy background and text color classes to the input field
+		const inputClasses = ['bg-primary', 'bg-secondary', 'bg-success', 'bg-danger', 'bg-warning', 'bg-info', 'bg-light', 'bg-dark', 'text-white', 'text-dark', 'text-muted', 'text-primary', 'text-secondary', 'text-success', 'text-danger', 'text-warning', 'text-info'];
+		selectClasses.forEach(className => {
+			if (inputClasses.includes(className)) {
+				toggleInput.classList.add(className);
+			}
+		});
+		
 		const defaultPlaceholder = selectEl.multiple ? 
 			((window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.placeholderTextMultiple) || 'Select Items') :
 			((window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.placeholderText) || 'Select Item');
-		toggleInput.placeholder = selectEl.getAttribute('placeholder') || defaultPlaceholder;
+		
+		// Use title attribute or default placeholder
+		const titleText = selectEl.getAttribute('title');
+		toggleInput.placeholder = titleText || defaultPlaceholder;
 		
 		if (!selectEl.multiple) {
 			let placeholderOption = Array.from(selectEl.options).find(o => o.value === '' && o.dataset.placeholder === 'true');
@@ -516,7 +806,10 @@
 		let searchInput = null;
 		if (isSearchable) {
 			searchWrap = createElement('div', 'ts-select-search');
-			const searchPlaceholder = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.searchPlaceholder) || 'Search...';
+			// Use ts-search-placeholder attribute or default
+			const customSearchPlaceholder = selectEl.getAttribute('ts-search-placeholder');
+			const defaultSearchPlaceholder = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.searchPlaceholder) || 'Search...';
+			const searchPlaceholder = customSearchPlaceholder || defaultSearchPlaceholder;
 			searchInput = createElement('input', 'inputSelectSearch form-control form-control-sm', { type: 'search', placeholder: searchPlaceholder });
 			searchWrap.appendChild(searchInput);
 			
@@ -636,13 +929,13 @@
 					if (!opt.disabled && !opt.dataset.placeholder) opt.selected = true;
 				});
 				selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-				syncFromOptions();
+				syncFromOptions(selectEl);
 			});
 			
 			actions.btnNone.addEventListener('click', function() {
 				Array.from(selectEl.options).forEach(opt => opt.selected = false);
 				selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-				syncFromOptions();
+				syncFromOptions(selectEl);
 			});
 			
 			actions.btnInverse.addEventListener('click', function() {
@@ -650,12 +943,11 @@
 					if (!opt.disabled && !opt.dataset.placeholder) opt.selected = !opt.selected;
 				});
 				selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-				syncFromOptions();
+				syncFromOptions(selectEl);
 			});
 		}
 
 		const itemsContainer = createElement('div', 'ts-select-menu list-group list-group-flush');
-		if (sizeMax) applyMaxItems(itemsContainer, sizeMax);
 		menu.appendChild(itemsContainer);
 
 		let resizeHandle = null;
@@ -889,7 +1181,7 @@
 										// Find the correct group for this control
 										const controlGroup = selectEl.querySelector(`optgroup[label="${ctrl.groupId}"], group[label="${ctrl.groupId}"]`);
 										if (controlGroup) {
-											updateGroupCheckboxState(ctrl.checkbox, controlGroup);
+											updateGroupCheckboxState(ctrl.checkbox, controlGroup, itemsContainer);
 										}
 									}
 								});
@@ -908,7 +1200,7 @@
 				});
 				
 				if (groupCheckbox) {
-					updateGroupCheckboxState(groupCheckbox, group);
+					updateGroupCheckboxState(groupCheckbox, group, itemsContainer);
 					// Add to groupControls array for proper management
 					groupControls.push({
 						checkbox: groupCheckbox,
@@ -995,14 +1287,14 @@
 								// Find the correct group for this control
 								const controlGroup = selectEl.querySelector(`optgroup[label="${ctrl.groupId}"], group[label="${ctrl.groupId}"]`);
 								if (controlGroup) {
-									updateGroupCheckboxState(ctrl.checkbox, controlGroup);
+									updateGroupCheckboxState(ctrl.checkbox, controlGroup, itemsContainer);
 								}
 							}
 						});
 						
 						// Update toggle label and clear button
 						selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-						syncFromOptions();
+						syncFromOptions(selectEl);
 					});
 				}
 				
@@ -1074,7 +1366,7 @@
 										// Find the correct group for this control
 										const controlGroup = selectEl.querySelector(`optgroup[label="${ctrl.groupId}"], group[label="${ctrl.groupId}"]`);
 										if (controlGroup) {
-											updateGroupCheckboxState(ctrl.checkbox, controlGroup);
+											updateGroupCheckboxState(ctrl.checkbox, controlGroup, itemsContainer);
 										}
 									}
 								});
@@ -1095,6 +1387,9 @@
 		menu.appendChild(noRes);
 
 		Array.from(selectEl.children).forEach(child => renderNode(child, 0));
+
+		// Apply max items after items are rendered so we can calculate correct height
+		if (sizeMax) applyMaxItems(itemsContainer, sizeMax);
 
 		const clearButtonTitle = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.clearButtonTitle) || 'Clear';
 		const clearBtn = createElement('span', 'ts-select-clear', { title: clearButtonTitle });
@@ -1140,6 +1435,9 @@
 				itemsContainer.style.overflowY = 'auto';
 				itemsContainer.dataset.customResize = 'true';
 			}
+			
+			// Ensure radio buttons are properly synchronized when dropdown opens
+			syncFromOptions(selectEl);
 			
 			// Scroll to first selected item immediately when dropdown opens
 			scrollToFirstSelectedItem(itemsContainer, selectEl);
@@ -1247,99 +1545,7 @@
 			}
 		}
 
-		function syncFromOptions() {
-			const buttons = itemsContainer.querySelectorAll('[data-index]');
-			buttons.forEach((btn) => {
-				const idx = parseInt(btn.getAttribute('data-index'), 10);
-				const opt = selectEl.options[idx];
-				if (!opt) return;
-				if (selectEl.multiple) {
-					const chk = btn.querySelector('input[type="checkbox"]');
-					if (chk) chk.checked = !!opt.selected;
-					btn.classList.toggle('active', !!opt.selected);
-				} else {
-					const radio = btn.querySelector('input[type="radio"]');
-					if (radio) radio.checked = !!opt.selected;
-					btn.classList.toggle('active', !!opt.selected);
-				}
-			});
-			if (selectEl.multiple && groupControls.length > 0) {
-				groupControls.forEach(ctrl => {
-					if (!ctrl.checkbox) return;
-					
-					// Use the same recursive logic for updating group states
-					const controlGroup = selectEl.querySelector(`optgroup[label="${ctrl.groupId}"], group[label="${ctrl.groupId}"]`);
-					if (controlGroup) {
-						updateGroupCheckboxState(ctrl.checkbox, controlGroup);
-					}
-				});
-			}
-			updateToggleLabel(toggleInput, selectEl, clearBtn);
-		}
 
-		function updateGroupCheckboxState(checkbox, group) {
-			const groupId = group.getAttribute('label');
-			
-			// Find ALL descendants at any depth using DOM traversal
-			function findAllDescendants(startElement) {
-				const descendants = [];
-				let currentElement = startElement.nextElementSibling;
-				
-				while (currentElement) {
-					// Stop if we hit another element at the same or higher level
-					if (currentElement.classList.contains('ts-select-group-label')) {
-						const currentLevel = parseInt(currentElement.dataset.level || '0', 10);
-						const startLevel = parseInt(startElement.dataset.level || '0', 10);
-						
-						if (currentLevel <= startLevel) {
-							break; // We've reached the end of this group's descendants
-						}
-					}
-					
-					// Add this element to descendants
-					descendants.push(currentElement);
-					currentElement = currentElement.nextElementSibling;
-				}
-				
-				return descendants;
-			}
-			
-			// Find the group label element
-			const groupLabel = itemsContainer.querySelector(`[data-group-id="${groupId}"]`);
-			if (!groupLabel) {
-				return;
-			}
-			
-			// Get all descendants using DOM traversal
-			const allDescendants = findAllDescendants(groupLabel);
-			
-			// Count total items (excluding group labels) and checked items
-			let totalItems = 0;
-			let checkedItems = 0;
-			
-			allDescendants.forEach(item => {
-				// Only count items that have checkboxes (not group labels)
-				if (!item.classList.contains('ts-select-group-label')) {
-					totalItems++;
-					const chk = item.querySelector('input[type="checkbox"]');
-					if (chk && chk.checked) {
-						checkedItems++;
-					}
-				}
-			});
-			
-			// Update checkbox state
-			if (checkedItems === 0) {
-				checkbox.checked = false;
-				checkbox.indeterminate = false;
-			} else if (checkedItems === totalItems) {
-				checkbox.checked = true;
-				checkbox.indeterminate = false;
-			} else {
-				checkbox.checked = false;
-				checkbox.indeterminate = true;
-			}
-		}
 
 		clearBtn.addEventListener('click', function(e) {
 			e.preventDefault();
@@ -1357,7 +1563,7 @@
 			}
 			
 			selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-			syncFromOptions();
+			syncFromOptions(selectEl);
 		});
 
 		itemsContainer.addEventListener('click', function(e) {
@@ -1378,6 +1584,24 @@
 					const checkbox = target.querySelector('input[type="checkbox"]');
 					if (checkbox) checkbox.checked = option.selected;
 					target.classList.toggle('active', option.selected);
+					
+					// Update group checkboxes immediately after individual option change
+					const groupLabels = wrapper.querySelectorAll('.ts-select-group-label');
+					groupLabels.forEach(groupLabel => {
+						const groupCheckbox = groupLabel.querySelector('input[type="checkbox"]');
+						if (groupCheckbox) {
+							const groupId = groupLabel.dataset.groupId;
+							const controlGroup = selectEl.querySelector(`optgroup[label="${groupId}"], group[label="${groupId}"]`);
+							if (controlGroup) {
+								updateGroupCheckboxState(groupCheckbox, controlGroup, itemsContainer);
+							}
+						}
+					});
+					
+					// Update the toggle label to show selected items
+					const toggleInput = wrapper.querySelector('.ts-select-toggle');
+					const clearBtn = wrapper.querySelector('.ts-select-clear');
+					updateToggleLabel(toggleInput, selectEl, clearBtn);
 				} else {
 					Array.from(selectEl.options).forEach(opt => opt.selected = false);
 					option.selected = true;
@@ -1399,51 +1623,148 @@
 				}
 				
 				selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-				syncFromOptions();
+				syncFromOptions(selectEl);
 			}
 		});
 
-		wrapper.getVal = function() {
-			if (selectEl.multiple) {
-				return Array.from(getSelectedOptions(selectEl)).map(o => o.value);
-			} else {
-				const selected = getSelectedOptions(selectEl);
-				return selected.length > 0 ? selected[0].value : '';
-			}
+
+		// Scroll to first selected item
+		wrapper.tsScrollToSelected = function() {
+			scrollToFirstSelectedItem(itemsContainer, selectEl);
 		};
 
-		wrapper.setVal = function(value) {
-			const ph = Array.from(selectEl.options).find(o => o.dataset && o.dataset.placeholder === 'true');
-			if (value === null || value === undefined || value === '') {
-				Array.from(selectEl.options).forEach(opt => opt.selected = false);
-				if (!selectEl.multiple && ph) ph.selected = true;
-			} else if (Array.isArray(value)) {
-				const stringValues = value.map(v => String(v));
-				Array.from(selectEl.options).forEach(opt => {
-					opt.selected = stringValues.includes(String(opt.value));
+		// Expand group(s) - if groupId is null, expand all groups
+		wrapper.tsExpandGroup = function(groupId) {
+			if (groupId) {
+				// Expand specific group
+				const groupLabel = itemsContainer.querySelector(`[data-group-id="${groupId}"]`);
+				if (groupLabel && groupLabel.dataset.expanded === 'false') {
+					const group = selectEl.querySelector(`optgroup[label="${groupId}"], group[label="${groupId}"]`);
+					if (group) {
+						toggleGroup(group, groupLabel, parseInt(groupLabel.dataset.level || '0', 10));
+					}
+				}
+			} else {
+				// Expand all groups
+				const allGroupLabels = itemsContainer.querySelectorAll('.ts-select-group-label');
+				allGroupLabels.forEach(groupLabel => {
+					if (groupLabel.dataset.expanded === 'false') {
+						const groupId = groupLabel.dataset.groupId;
+						const group = selectEl.querySelector(`optgroup[label="${groupId}"], group[label="${groupId}"]`);
+						if (group) {
+							toggleGroup(group, groupLabel, parseInt(groupLabel.dataset.level || '0', 10));
+						}
+					}
 				});
-				if (!selectEl.multiple && ph) ph.selected = false;
-			} else {
-				const stringValue = String(value);
-				selectEl.value = stringValue;
-				if (ph) ph.selected = false;
 			}
-			selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-			syncFromOptions();
 		};
 
-		selectEl.addEventListener('change', () => syncFromOptions());
+		// Collapse group(s) - if groupId is null, collapse all groups
+		wrapper.tsCollapseGroup = function(groupId) {
+			if (groupId) {
+				// Collapse specific group
+				const groupLabel = itemsContainer.querySelector(`[data-group-id="${groupId}"]`);
+				if (groupLabel && groupLabel.dataset.expanded === 'true') {
+					const group = selectEl.querySelector(`optgroup[label="${groupId}"], group[label="${groupId}"]`);
+					if (group) {
+						toggleGroup(group, groupLabel, parseInt(groupLabel.dataset.level || '0', 10));
+					}
+				}
+			} else {
+				// Collapse all groups
+				const allGroupLabels = itemsContainer.querySelectorAll('.ts-select-group-label');
+				allGroupLabels.forEach(groupLabel => {
+					if (groupLabel.dataset.expanded === 'true') {
+						const groupId = groupLabel.dataset.groupId;
+						const group = selectEl.querySelector(`optgroup[label="${groupId}"], group[label="${groupId}"]`);
+						if (group) {
+							toggleGroup(group, groupLabel, parseInt(groupLabel.dataset.level || '0', 10));
+						}
+					}
+				});
+			}
+		};
+
+		// Set height or reset to default
+		wrapper.tsSetHeight = function(height) {
+			if (height && typeof height === 'number') {
+				// Set custom height
+				itemsContainer.style.height = `${height}px`;
+				itemsContainer.style.maxHeight = 'none';
+				itemsContainer.style.overflowY = 'auto';
+				itemsContainer.dataset.customResize = 'true';
+				wrapper.dataset.customHeight = `${height}px`;
+			} else {
+				// Reset to default
+				itemsContainer.style.height = '';
+				itemsContainer.style.maxHeight = '';
+				itemsContainer.style.overflowY = '';
+				itemsContainer.dataset.customResize = 'false';
+				wrapper.dataset.customHeight = '';
+				
+				// Apply max items if set
+				const sizeMax = parseInt(selectEl.getAttribute('ts-size') || '', 10);
+				if (sizeMax) {
+					applyMaxItems(itemsContainer, sizeMax);
+				}
+			}
+		};
+
+		selectEl.addEventListener('change', () => syncFromOptions(selectEl));
 
 		const observer = new MutationObserver((mutations) => {
 			for (const m of mutations) {
 				if (m.type === 'attributes' && m.attributeName === 'disabled') {
 					if (selectEl.disabled) wrapper.classList.add('disabled'); else wrapper.classList.remove('disabled');
+				} else if (m.type === 'attributes' && m.attributeName === 'class') {
+					// Handle class changes - sync classes between select and wrapper
+					const selectClasses = Array.from(selectEl.classList);
+					const tsSelectClasses = ['ts-select', 'd-none']; // Classes to exclude
+					
+					// Remove all non-ts-select classes from wrapper first
+					const wrapperClasses = Array.from(wrapper.classList);
+					wrapperClasses.forEach(className => {
+						if (!['ts-select', 'dropdown', 'disabled'].includes(className)) {
+							wrapper.classList.remove(className);
+						}
+					});
+					
+					// Add all non-ts-select classes from select to wrapper
+					selectClasses.forEach(className => {
+						if (!tsSelectClasses.includes(className)) {
+							wrapper.classList.add(className);
+						}
+					});
+					
+					// Also sync classes to the input field
+					const toggleInput = wrapper.querySelector('.ts-select-toggle');
+					if (toggleInput) {
+						const inputClasses = ['bg-primary', 'bg-secondary', 'bg-success', 'bg-danger', 'bg-warning', 'bg-info', 'bg-light', 'bg-dark', 'text-white', 'text-dark', 'text-muted', 'text-primary', 'text-secondary', 'text-success', 'text-danger', 'text-warning', 'text-info'];
+						
+						// Remove existing input classes first
+						const currentInputClasses = Array.from(toggleInput.classList);
+						currentInputClasses.forEach(className => {
+							if (inputClasses.includes(className)) {
+								toggleInput.classList.remove(className);
+							}
+						});
+						
+						// Add new input classes from select
+						selectClasses.forEach(className => {
+							if (inputClasses.includes(className)) {
+								toggleInput.classList.add(className);
+							}
+						});
+					}
 				}
 			}
 		});
 		observer.observe(selectEl, { attributes: true });
 
-		syncFromOptions();
+		// Only sync if wrapper exists
+		if (wrapper) {
+			syncFromOptions(selectEl);
+		}
 		
 		if (!hasGroups) {
 			wrapper.style.setProperty('--ts-checkbox-margin-left', '0px');
@@ -1561,8 +1882,77 @@
 			}
 		},
 		
+		// Method to refresh ts-select component after adding/removing options
+		refresh: function(selectId) {
+			const selectEl = document.getElementById(selectId);
+			if (!selectEl) return;
+			
+			// Find the wrapper
+			const wrapper = document.querySelector(`[data-ts-select-for="${selectId}"]`);
+			if (!wrapper) return;
+			
+			// Get the items container
+			const itemsContainer = wrapper.querySelector('.ts-select-menu');
+			if (!itemsContainer) return;
+			
+			// Clear existing items
+			itemsContainer.innerHTML = '';
+			
+			// Re-render all options
+			const hasGroups = selectEl.querySelector('optgroup, group') !== null;
+			const groupControls = [];
+			
+			function renderNode(node, level, parentGroupLabel = null) {
+				const isGroupTag = node.tagName === 'OPTGROUP' || node.tagName === 'GROUP';
+				if (isGroupTag) {
+					const group = node;
+					const labelEl = createElement('div', 'ts-select-group-label dropdown-item px-1 py-1');
+					labelEl.dataset.level = String(level);
+					labelEl.classList.add(`level-${level}`);
+					labelEl.dataset.groupId = group.getAttribute('label') || String(Math.random());
+					labelEl.dataset.expanded = 'true';
+					labelEl.style.cursor = 'pointer';
+					const groupExpandedTitle = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.groupExpandedText) || 'Click to collapse group';
+					labelEl.title = groupExpandedTitle;
+			
+					let groupCheckbox = null;
+					if (selectEl.multiple) {
+						groupCheckbox = createElement('input', 'form-check-input ts-select-group-check', { type: 'checkbox' });
+						const groupCheckboxTitle = (window.TsSelectLang && window.TsSelectLang.defaults && window.TsSelectLang.defaults.groupCheckboxTitle) || 'Toggle all items in this group';
+						groupCheckbox.title = groupCheckboxTitle;
+						labelEl.appendChild(groupCheckbox);
+					}
+			
+					labelEl.appendChild(createElement('span', 'ts-select-group-text', { text: (group.getAttribute('label') || '') }));
+					itemsContainer.appendChild(labelEl);
+			
+					Array.from(group.children).forEach(child => {
+						renderNode(child, level + 1, group.getAttribute('label'));
+					});
+				} else {
+					const option = node;
+					const index = Array.from(selectEl.options).indexOf(option);
+					const item = buildDropdownItem(option, selectEl.multiple, index);
+					if (!item) return;
+					item.classList.add(`level-${level}`);
+					if (parentGroupLabel) {
+						item.dataset.parentGroup = parentGroupLabel;
+					}
+					itemsContainer.appendChild(item);
+				}
+			}
+			
+			// Re-render all children
+			Array.from(selectEl.children).forEach(child => renderNode(child, 0));
+			
+			// Re-sync the component
+			const toggleInput = wrapper.querySelector('.ts-select-toggle');
+			const clearBtn = wrapper.querySelector('.ts-select-clear');
+			syncFromOptions(selectEl);
+		},
+		
 		// Method to select all options
-		selectAll: function(selectId) {
+		tsAll: function(selectId) {
 			const selectEl = document.getElementById(selectId);
 			if (!selectEl) return;
 			
@@ -1583,7 +1973,7 @@
 		},
 		
 		// Method to deselect all options
-		selectNone: function(selectId) {
+		tsNone: function(selectId) {
 			const selectEl = document.getElementById(selectId);
 			if (!selectEl) return;
 			
@@ -1602,7 +1992,7 @@
 		},
 		
 		// Method to invert selection
-		selectInverse: function(selectId) {
+		tsInverse: function(selectId) {
 			const selectEl = document.getElementById(selectId);
 			if (!selectEl) return;
 			

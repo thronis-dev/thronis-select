@@ -2,6 +2,7 @@
 .ts-select.dropdown {
 	position: relative;
 	width: 100%;
+	border-radius: 0.375rem;
 }
 .ts-select {
 	user-select: none !important;
@@ -39,6 +40,78 @@
 	/* Prevent text selection completely */
 	-webkit-touch-callout: none !important;
 	-webkit-tap-highlight-color: transparent !important;
+	/* Ensure border radius is maintained */
+	border-radius: 0.375rem !important;
+}
+
+/* Ensure background colors respect border radius */
+.ts-select .ts-select-toggle.bg-primary,
+.ts-select .ts-select-toggle.bg-secondary,
+.ts-select .ts-select-toggle.bg-success,
+.ts-select .ts-select-toggle.bg-danger,
+.ts-select .ts-select-toggle.bg-warning,
+.ts-select .ts-select-toggle.bg-info,
+.ts-select .ts-select-toggle.bg-light,
+.ts-select .ts-select-toggle.bg-dark {
+	border-radius: 0.375rem !important;
+	background-clip: border-box !important;
+	-webkit-background-clip: border-box !important;
+	position: relative;
+}
+
+/* Use pseudo-element for proper corner clipping */
+.ts-select .ts-select-toggle.bg-primary::before,
+.ts-select .ts-select-toggle.bg-secondary::before,
+.ts-select .ts-select-toggle.bg-success::before,
+.ts-select .ts-select-toggle.bg-danger::before,
+.ts-select .ts-select-toggle.bg-warning::before,
+.ts-select .ts-select-toggle.bg-info::before,
+.ts-select .ts-select-toggle.bg-light::before,
+.ts-select .ts-select-toggle.bg-dark::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	border-radius: 0.375rem;
+	background: inherit;
+	z-index: -1;
+}
+
+/* Additional fix for background color clipping */
+.ts-select.bg-primary .ts-select-toggle,
+.ts-select.bg-secondary .ts-select-toggle,
+.ts-select.bg-success .ts-select-toggle,
+.ts-select.bg-danger .ts-select-toggle,
+.ts-select.bg-warning .ts-select-toggle,
+.ts-select.bg-info .ts-select-toggle,
+.ts-select.bg-light .ts-select-toggle,
+.ts-select.bg-dark .ts-select-toggle {
+	border-radius: 0.375rem !important;
+	background-clip: border-box !important;
+	-webkit-background-clip: border-box !important;
+	position: relative;
+}
+
+/* Use pseudo-element for wrapper-level background clipping */
+.ts-select.bg-primary .ts-select-toggle::before,
+.ts-select.bg-secondary .ts-select-toggle::before,
+.ts-select.bg-success .ts-select-toggle::before,
+.ts-select.bg-danger .ts-select-toggle::before,
+.ts-select.bg-warning .ts-select-toggle::before,
+.ts-select.bg-info .ts-select-toggle::before,
+.ts-select.bg-light .ts-select-toggle::before,
+.ts-select.bg-dark .ts-select-toggle::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	border-radius: 0.375rem;
+	background: inherit;
+	z-index: -1;
 }
 
 /* Caret indicator */
@@ -151,8 +224,7 @@
 }
 
 .ts-select .ts-select-menu {
-	max-height: 240px;
-	overflow: auto;
+	/* max-height and overflow will be set by JavaScript based on ts-size attribute */
 	
 	border: none;
 	background: var(--bs-body-bg);
@@ -427,8 +499,9 @@
 	height: auto !important;
 	min-height: 32px !important;
 	max-height: 32px !important;
-	padding-top: 8px !important;
-	padding-bottom: 8px !important;
+	/* max-height removed to allow container height control via ts-size */
+	padding-top: 4px !important;
+	padding-bottom: 4px !important;
 	margin: 0 !important;
 	/* Ensure text is fully visible and contained */
 	display: flex !important;
@@ -488,7 +561,7 @@
 
 .ts-select .ts-select-menu {
 	resize: none;
-	overflow: auto;
+	/* overflow will be set by JavaScript based on ts-size attribute */
 }
 .ts-select-group-check
 {
